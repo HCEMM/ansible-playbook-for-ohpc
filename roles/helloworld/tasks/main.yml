@@ -1,40 +1,93 @@
-- block:
-  - name: Add user test to master
-    user:
-      name: test
-      comment: Test User for Hello World MPI test
-      state: present
-    when:
-      - inventory_hostname in groups[nt_sms]
+---
 
-  - name: Propagate this to the computes in stateful
-    user:
-      name: test
-      comment: Test User for Hello World MPI test
-      state: present
-    when:
-      - inventory_hostname in groups[nt_cnodes]
-      - enable_warewulf == false
-
-  - name: Propagate this to the computes in stateless
-    shell: wwsh file resync passwd shadow group
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_warewulf == True
-
-  - name: Run the Hello World test
-    become: yes
-    become_method: su
-    become_user: test
-    shell: "cd /home/test/ && mpicc -O3 /opt/ohpc/pub/examples/mpi/hello.c && srun -n 8 -N {{ num_computes }} --mpi=pmix /home/test/a.out"
-    register: test_output
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_nfs_home == True
-
-  - debug: msg="{{ test_output.stdout_lines }}"
-    when:
-      - inventory_hostname in groups[nt_sms]
-
+- name: Hello World MPI test
   when:
-    - enable_helloworld == True
+    - enable_helloworld
+  block:
+
+    - name: Add user test to master
+      ansible.builtin.user:
+        name: test
+        comment: Test User for Hello World MPI test
+        state: present
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+    - name: Get checksums of passwd, shadow, and group files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        checksum_algorithm: sha1
+      loop:
+        - /etc/passwd
+        - /etc/shadow
+        - /etc/group
+      register: auth_files
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
+
+    - name: Set fact with combined hash of auth files
+      ansible.builtin.set_fact:
+        auth_files_combined_checksum: "{{ auth_files.results | map(attribute='checksum') | join('') | hash('sha1') }}"
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
+
+    - name: Load previous hash if available
+      ansible.builtin.slurp:
+        src: /var/tmp/ww_auth_checksum
+      register: previous_checksum_file
+      ignore_errors: true
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
+
+    - name: Set previous checksum fact
+      ansible.builtin.set_fact:
+        previous_checksum: "{{ previous_checksum_file.content | b64decode | trim }}"
+      when: previous_checksum_file is defined and previous_checksum_file.content is defined
+
+    - name: Determine if wwsh resync is needed
+      ansible.builtin.set_fact:
+        resync_needed: "{{ auth_files_combined_checksum != previous_checksum | default('') }}"
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
+
+    - name: Resync passwd/shadow/group to compute nodes (stateless)
+      ansible.builtin.command: wwsh file resync passwd shadow group
+      changed_when:
+        - resync_needed | bool
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
+
+    - name: Save current checksum after resync
+      ansible.builtin.copy:
+        content: "{{ auth_files_combined_checksum }}"
+        dest: /var/tmp/ww_auth_checksum
+        mode: '0644'
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
+        - resync_needed | bool
+
+    - name: Run the Hello World test
+      become: true
+      become_method: ansible.builtin.su
+      become_user: test
+      ansible.builtin.shell:
+        cmd: >
+          cd /home/test &&
+          mpicc -O3 /opt/ohpc/pub/examples/mpi/hello.c -o /home/test/a.out &&
+          srun -n 8 -N {{ num_computes }} --mpi=pmix /home/test/a.out
+        creates: /home/test/a.out
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_nfs_home
+
+    - name: Display Hello World test output
+      ansible.builtin.debug:
+        msg: "{{ test_output.stdout_lines }}"
+      when:
+        - inventory_hostname in groups[nt_sms]

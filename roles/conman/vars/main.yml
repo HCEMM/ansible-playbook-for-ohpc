@@ -1,6 +1,5 @@
 ---
 
 #
-#roles/slurm-server/vars/main.yml
+# roles/slurm-server/vars/main.yml
 #
-

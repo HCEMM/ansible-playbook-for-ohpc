@@ -17,59 +17,58 @@
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/genders/tasks/main.yml
+# roles/genders/tasks/main.yml
 #
 
-#if [[ ${enable_genders} -eq 1 ]];then
-- block:
-
-#     # Install genders
-#     yum -y install genders-ohpc
-  - name: Install genders-ohpc on master
-    yum:
-      state: latest
-      name:
-        - genders-ohpc
-    when:
-      - inventory_hostname in groups[nt_sms]
-
-#     echo -e "${sms_name}\tsms" > /etc/genders
-  - name: Generate a sample genders file(Add file) on master
-    lineinfile:
-      path: /etc/genders
-      state: present
-      backrefs: no
-      create: yes
-      regexp: "^{{ sms_name }}{{ '\t' }}sms$"
-      line: "{{ sms_name }}\tsms"
-    when:
-      - inventory_hostname in groups[nt_sms]
-
-#     for ((i=0; i<$num_computes; i++)) ; do
-#        echo -e "${c_name[$i]}\tcompute,bmc=${c_bmc[$i]}"
-#     done >> /etc/genders
-  - name: Generate a sample genders file(remove existing line) on master
-    lineinfile:
-      path: /etc/genders
-      backrefs: no
-      state: absent
-      regexp: "^{{ item.c_name }}{{'\t'}}compute,bmc={{ item.c_bmc }}$"
-    with_items: "{{ compute_nodes }}"
-    when:
-      - inventory_hostname in groups[nt_sms]
-
-  - name: Generate a sample genders file(add line) on master
-    lineinfile:
-      path: /etc/genders
-      backrefs: no
-      state: present
-      regexp: "^{{ item.c_name }}{{ '\t' }}compute,bmc={{ item.c_bmc }}$"
-      line: "{{ item.c_name }}{{'\t'}}compute,bmc={{ item.c_bmc }}"
-    with_items: "{{ compute_nodes }}"
-    when:
-      - inventory_hostname in groups[nt_sms]
-
+# if [[ ${enable_genders} -eq 1 ]];then
+- name: Install genders system-wide
   when:
-    - enable_genders == true
-#fi
+    - enable_genders
+  block:
 
+    #     # Install genders
+    #     yum -y install genders-ohpc
+    - name: Install genders-ohpc on master
+      ansible.builtin.dnf:
+        state: present
+        name: genders-ohpc
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+    #     echo -e "${sms_name}\tsms" > /etc/genders
+    - name: Generate a sample genders file(Add file) on master
+      ansible.builtin.lineinfile:
+        path: /etc/genders
+        state: present
+        backrefs: false
+        create: true
+        regexp: "^{{ sms_name }}{{ '\t' }}sms$"
+        line: "{{ sms_name }}\tsms"
+        mode: '0644'
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+    #     for ((i=0; i<$num_computes; i++)) ; do
+    #        echo -e "${c_name[$i]}\tcompute,bmc=${c_bmc[$i]}"
+    #     done >> /etc/genders
+    - name: Generate a sample genders file(remove existing line) on master
+      ansible.builtin.lineinfile:
+        path: /etc/genders
+        backrefs: false
+        state: absent
+        regexp: "^{{ item.c_name }}{{ '\t' }}compute,bmc={{ item.c_bmc }}$"
+      with_items: "{{ compute_nodes }}"
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+    - name: Generate a sample genders file(add line) on master
+      ansible.builtin.lineinfile:
+        path: /etc/genders
+        backrefs: false
+        state: present
+        regexp: "^{{ item.c_name }}{{ '\t' }}compute,bmc={{ item.c_bmc }}$"
+        line: "{{ item.c_name }}{{ '\t' }}compute,bmc={{ item.c_bmc }}"
+      with_items: "{{ compute_nodes }}"
+      when:
+        - inventory_hostname in groups[nt_sms]
+  # fi
