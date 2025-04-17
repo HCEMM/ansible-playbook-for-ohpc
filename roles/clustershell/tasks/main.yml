@@ -17,73 +17,78 @@
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/clustershell/tasks/main.yml
+# roles/clustershell/tasks/main.yml
 #
 
-#if [[ ${enable_clustershell} -eq 1 ]];then
-- block:
-#     # Install clustershell
-#     yum -y install clustershell-ohpc
-  - name: Install clustershell on master
-    yum:
-      state: latest
-      name:
-        - clustershell-ohpc
-    when:
-      - inventory_hostname in groups[nt_sms]
-
-#     cd /etc/clustershell/groups.d
-#     mv local.cfg local.cfg.orig
-  - name: Backup /etc/clustershell/groups.d/local.cfg on master
-    command: mv /etc/clustershell/groups.d/local.cfg /etc/clustershell/groups.d/local.cfg.orig
-    register: result
-    failed_when: result.rc not in [0]
-    when:
-      - inventory_hostname in groups[nt_sms]
-
-#     echo "adm: ${sms_name}" > local.cfg
-  - name: Remove /etc/clustershell/groups.d/local.cfg on master
-    file: path=/etc/clustershell/groups.d/local.cfg state=absent
-
-  - name: Touch /etc/clustershell/groups.d/local.cfg on master
-    file: path=/etc/clustershell/groups.d/local.cfg state=touch
-    when:
-      - inventory_hostname in groups[nt_sms]
-
-  - name: "Add administrator to /etc/clustershell/groups.d/local.cfg on master"
-    lineinfile:
-      path: /etc/clustershell/groups.d/local.cfg
-      state: present
-      backrefs: no
-      create: yes
-      regexp: '^adm{{ d_colon }} {{sms_name}}$'
-      line: "adm{{ d_colon }} {{sms_name}}"
-    when:
-      - inventory_hostname in groups[nt_sms]
-
-#     echo "compute: ${compute_prefix}[1-${num_computes}]" >> local.cfg
-  - name: "Add computing nodes to /etc/clustershell/groups.d/local.cfg on master"
-    lineinfile:
-      path: /etc/clustershell/groups.d/local.cfg
-      state: present
-      backrefs: no
-      regexp: '^compute{{ d_colon }} {{ compute_prefix }}[1-{{ num_computes }}]$'
-      line: "compute{{ d_colon }} {{ compute_prefix }}[1-{{ num_computes }}]"
-    when:
-      - inventory_hostname in groups[nt_sms]
-
-#     echo "all: @adm,@compute" >> local.cfg
-  - name: "Add all object definition to /etc/clustershell/groups.d/local.cfg on master"
-    lineinfile:
-      path: /etc/clustershell/groups.d/local.cfg
-      state: present
-      backrefs: no
-      regexp: '^all{{ d_colon }} @adm,@compute$'
-      line: "all{{ d_colon }} @adm,@compute"
-    when:
-      - inventory_hostname in groups[nt_sms]
-
+# if [[ ${enable_clustershell} -eq 1 ]];then
+- name: Configure clustershell on master
   when:
-    - enable_clustershell == true
-#fi
+    - enable_clustershell
+  block:
+    #     # Install clustershell
+    #     dnf -y install clustershell-ohpc
+    - name: Install clustershell on master
+      ansible.builtin.dnf:
+        name: clustershell-ohpc
+        state: present
+      when:
+        - inventory_hostname in groups[nt_sms]
 
+    #     cd /etc/clustershell/groups.d
+    #     mv local.cfg local.cfg.orig
+    - name: Backup /etc/clustershell/groups.d/local.cfg on master
+      ansible.builtin.command: mv /etc/clustershell/groups.d/local.cfg /etc/clustershell/groups.d/local.cfg.orig
+      args:
+        creates: /etc/clustershell/groups.d/local.cfg.orig
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+  #     echo "adm: ${sms_name}" > local.cfg
+    - name: Remove /etc/clustershell/groups.d/local.cfg on master
+      ansible.builtin.file:
+        path: /etc/clustershell/groups.d/local.cfg
+        state: absent
+
+    - name: Touch /etc/clustershell/groups.d/local.cfg on master
+      ansible.builtin.file:
+        path: /etc/clustershell/groups.d/local.cfg
+        state: touch
+        mode: '0644'
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+    - name: "Add administrator to /etc/clustershell/groups.d/local.cfg on master"
+      ansible.builtin.lineinfile:
+        path: /etc/clustershell/groups.d/local.cfg
+        state: present
+        backrefs: false
+        create: true
+        regexp: '^adm{{ d_colon }} {{ sms_name }}$'
+        line: "adm{{ d_colon }} {{ sms_name }}"
+        mode: '0644'
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+  #     echo "compute: ${compute_prefix}[1-${num_computes}]" >> local.cfg
+    - name: "Add computing nodes to /etc/clustershell/groups.d/local.cfg on master"
+      ansible.builtin.lineinfile:
+        path: /etc/clustershell/groups.d/local.cfg
+        state: present
+        backrefs: false
+        regexp: '^compute{{ d_colon }} {{ compute_prefix }}[1-{{ num_computes }}]$'
+        line: "compute{{ d_colon }} {{ compute_prefix }}[1-{{ num_computes }}]"
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+  #     echo "all: @adm,@compute" >> local.cfg
+    - name: "Add all object definition to /etc/clustershell/groups.d/local.cfg on master"
+      ansible.builtin.lineinfile:
+        path: /etc/clustershell/groups.d/local.cfg
+        state: present
+        backrefs: false
+        regexp: '^all{{ d_colon }} @adm,@compute$'
+        line: "all{{ d_colon }} @adm,@compute"
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+  # fi

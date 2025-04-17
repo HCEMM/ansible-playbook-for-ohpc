@@ -2,10 +2,10 @@
 
 # This file is distributed under the Apache License (the
 # "License"); you may not use this file except in compliance
-# with the License.  See the LICENSE file distributed with 
+# with the License.  See the LICENSE file distributed with
 # this work for additional information regarding copyright
-# ownership. 
-# 
+# ownership.
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -13,23 +13,27 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# This file is derived from recipe.sh in OpenHPC distribution 
+# This file is derived from recipe.sh in OpenHPC distribution
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/autotools/tasks/main.yml
+# roles/autotools/tasks/main.yml
 #
 
-#yum -y groupinstall ohpc-autotools
+# yum -y groupinstall ohpc-autotools
 - name: Install ohpc-autotools on master and a development node
-  yum: name=ohpc-autotools state=latest
+  ansible.builtin.dnf:
+    name: ohpc-autotools
+    state: present
   when:
     ( inventory_hostname in groups[ nt_devnodes ] ) or
-    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf is false ) )
 
-#for computing nodes with warewulf
+# for computing nodes with warewulf
 - name: Install ohpc-autotools for a computing image on master
-  yum: name=ohpc-autotools installroot="{{ compute_chroot_loc }}" state=latest
+  ansible.builtin.dnf:
+    name: ohpc-autotools
+    installroot: "{{ compute_chroot_loc }}"
+    state: present
   when:
-    ( ( inventory_hostname in groups[nt_sms] ) and ( enable_warewulf == true ) )
-
+    ( ( inventory_hostname in groups[nt_sms] ) and ( enable_warewulf is true ) )
