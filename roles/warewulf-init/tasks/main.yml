@@ -22,7 +22,7 @@
 
 # yum -y groupinstall ohpc-warewulf
 - name: Install ohpc-warewulf on master
-  ansible.builtin.dnf: 
+  ansible.builtin.dnf:
     state: present
     name:
       - ohpc-warewulf
@@ -33,183 +33,227 @@
 # -----------------------------------------------------------
 # Complete basic Warewulf setup for master node (Section 3.5)
 # -----------------------------------------------------------
-- block:
 
-#perl -pi -e "s/device = eth1/device = ${sms_eth_internal}/" /etc/warewulf/provision.conf
-  - name: Configure Warewulf provisioning to use desired internal interface (on master)
-    replace: dest=/etc/warewulf/provision.conf regexp='device\s+=\s+eth1' replace="device = {{ sms_eth_internal }}" backup=yes
-
-#perl -pi -e "s/^\s+disable\s+= yes/ disable = no/" /etc/xinetd.d/tftp
-  - name: Enable tftp service for computing node image distribution (on master)
-    replace: dest=/etc/xinetd.d/tftp regexp='^\s+disable\s+= yes' replace="disable = no" backup=yes
-
-#ifconfig ${sms_eth_internal} ${sms_ip} netmask ${internal_netmask} up
-  - name: Enable internal interface for provisioning (on master)
-    command: "ifconfig {{ sms_eth_internal }} {{ sms_ip }} netmask {{ internal_netmask }} up"
-    register: result
-    failed_when: result.rc not in [0]
-    when:
-      - enable_ifup == false
-      - enable_dhcpd_server == false
-
-# Restart/enable relevant services to support provisioning
-#systemctl restart xinetd
-  - name: Restart xinetd on master
-    service: name=xinetd state=restarted
-
-#systemctl enable mariadb.service
-  - name: Enable mariadb.service on master
-    service: name=mariadb.service enabled=yes
-
-#systemctl restart mariadb
-  - name: Restart mariadb on master
-    service: name=mariadb state=restarted
-
-#systemctl enable httpd.service
-  - name: Enable httpd.service on master
-    service: name=httpd.service enabled=yes
-
-#systemctl restart httpd
-  - name: Restart httpd on master
-    service: name=httpd state=restarted
-
+- name: Complete basic Warewulf setup for master node
   when:
     - inventory_hostname in groups[ nt_sms ]
-    - enable_warewulf == true
+    - enable_warewulf
+
+  block:
+
+  # perl -pi -e "s/device = eth1/device = ${sms_eth_internal}/" /etc/warewulf/provision.conf
+    - name: Configure Warewulf provisioning to use desired internal interface (on master)
+      ansible.builtin.replace:
+        dest: /etc/warewulf/provision.conf
+        regexp: 'device\s+=\s+eth1'
+        replace: "device = {{ sms_eth_internal }}"
+        backup: true
+
+  # perl -pi -e "s/^\s+disable\s+= yes/ disable = no/" /etc/xinetd.d/tftp
+    - name: Enable tftp service for computing node image distribution (on master)
+      ansible.builtin.replace:
+        dest: /etc/xinetd.d/tftp
+        regexp: '^\s+disable\s+= yes'
+        replace: "disable = no"
+        backup: true
+
+  # ifconfig ${sms_eth_internal} ${sms_ip} netmask ${internal_netmask} up
+    - name: Enable internal interface for provisioning (on master)
+      ansible.general.nmcli:
+        conn_name: "{{ sms_eth_internal }}"
+        state: up
+        ip4: "V({{ sms_ip }}{{ '/24' if internal_netmask == '255.255.255.0' else '' }})"
+      when:
+        - not enable_ifup
+        - not enable_dhcpd_server
+        - ansible_facts['interfaces'][sms_eth_internal]['state'] != 'up'
+
+  # Restart/enable relevant services to support provisioning
+  # systemctl restart xinetd
+    - name: Restart xinetd on master
+      ansible.builtin.service:
+        name: xinetd
+        state: restarted
+
+  # systemctl enable mariadb.service
+    - name: Enable mariadb.service on master
+      ansible.builtin.service:
+        name: mariadb.service
+        enabled: true
+
+  # systemctl restart mariadb
+    - name: Restart mariadb on master
+      ansible.builtin.service:
+        name: mariadb
+        state: restarted
+
+  # systemctl enable httpd.service
+    - name: Enable httpd.service on master
+      ansible.builtin.service:
+        name: httpd.service
+        enabled: true
+
+  # systemctl restart httpd
+    - name: Restart httpd on master
+      ansible.builtin.service:
+        name: httpd
+        state: restarted
+
 # -------------------------------------------------
 # Create compute image for Warewulf (Section 3.6.1)
 # -------------------------------------------------
 
 # Override default OS repository (optional) - set YUM_MIRROR variable to desired repo location (on master)
-#TODO:
-#if [ ! -z ${BOS_MIRROR+x} ]; then
+# TODO:
+# if [ ! -z ${BOS_MIRROR+x} ]; then
 #     export YUM_MIRROR=${BOS_MIRROR}
-#fi
+# fi
 
-- block:
-
-  - name: Touch ~/.bashrc on master
-    file: path="{{ ansible_home }}/.bashrc" state=touch
-    when:
-      - enable_warewulf == true
-
-  - name: "Add environment variable export CHROOT={{compute_chroot_loc}} on master"
-    lineinfile:
-      path: "{{ ansible_home }}/.bashrc"
-      state: present
-      backrefs: no
-      regexp: '^export CHROOT="{{ compute_chroot_loc }}$'
-      line: 'export CHROOT="{{ compute_chroot_loc }}"'
+- name: Create compute image for Warewulf
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
-#wwmkchroot centos-7 $CHROOT
-- name: Build initial chroot image on master
-  command: wwmkchroot centos-7 "{{ compute_chroot_loc }}"
+  block:
+
+    - name: Touch ~/.bashrc on master
+      ansible.builtin.file:
+        path: "{{ ansible_home }}/.bashrc"
+        state: touch
+        mode: '0644'
+      when:
+        - enable_warewulf
+
+    - name: "Add environment variable export CHROOT=compute_chroot_loc on master"
+      ansible.builtin.lineinfile:
+        path: "{{ ansible_home }}/.bashrc"
+        state: present
+        backrefs: false
+        regexp: '^export CHROOT="{{ compute_chroot_loc }}$'
+        line: 'export CHROOT="{{ compute_chroot_loc }}"'
+
+# wwmkchroot centos-7 $CHROOT
+- name: Build initial chroot image on master (only if not already created)
+  ansible.builtin.command: wwmkchroot centos-7 "{{ compute_chroot_loc }}"
   register: result
   failed_when: result.rc not in [0, 1]
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
+  args:
+    creates: "{{ compute_chroot_loc }}"
 
 # ----------------------------------------------
 # Customize system configuration (Section 3.7.3)
 # ----------------------------------------------
-#wwinit database
-- name: initialize database on master
-  command: wwinit database
-  register: result
-  failed_when: result.rc not in [0]
+# wwinit database
+- name: Initialize database on master
+  ansible.builtin.command: wwinit database
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
+  args:
+    creates: /var/lib/warewulf/database
 
 # Clusterwide SSH Key configuration with Warewulf and without
-#wwinit ssh_keys
+# wwinit ssh_keys
 - name: Generate cluster ssh keys on master
-  command: wwinit ssh_keys
+  ansible.builtin.command: wwinit ssh_keys
   register: result
   ignore_errors: true
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
+  args:
+    creates: /root/.ssh/cluster.pub
 
 - name: Generate cluster ssh keys on master
-  user:
+  ansible.builtin.user:
     name: root
-    generate_ssh_key: yes
+    generate_ssh_key: true
     ssh_key_bits: 2048
     ssh_key_type: rsa
     ssh_key_file: .ssh/cluster
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == false
+    - not enable_warewulf
 
-#cat ~/.ssh/cluster.pub >> $CHROOT/root/.ssh/authorized_keys
+
+# cat ~/.ssh/cluster.pub >> $CHROOT/root/.ssh/authorized_keys
 - name: Create ~/.ssh in the computing node image
-  file: path="{{ compute_chroot_loc }}/root/.ssh" state=directory mode=0700
+  ansible.builtin.file:
+    path: "{{ compute_chroot_loc }}/root/.ssh"
+    state: directory
+    mode: '0700'
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 # stateful
 - name: Create ~/.ssh  on each computing node
-  file: path="/root/.ssh" state=directory mode=0700
+  ansible.builtin.file:
+    path: "/root/.ssh"
+    state: directory
+    mode: '0700'
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
 - name: Copy /root/.ssh/cluster.pub to /tmp to copy the key on master
-  command: cp "/root/.ssh/cluster.pub" "{{ compute_chroot_loc }}/root/cluster.pub"
-  register: result
-  failed_when: result.rc not in [0]
+  ansible.builtin.copy:
+    src: "/root/.ssh/cluster.pub"
+    dest: "{{ compute_chroot_loc }}/root/cluster.pub"
+    mode: '0644'
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 - name: Fetch cluster.pub in sms to a ansible local cluster.pub
-  fetch:
+  ansible.builtin.fetch:
     src: /root/.ssh/cluster.pub
     dest: "{{ role_path }}/cluster.pub"
-    flat: yes
+    flat: true
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == false
+    - not enable_warewulf
 
 # stateless
 - name: Copy ansible local cluster.pub to /root/.ssh/cluster.pub on master
-  copy:
+  ansible.builtin.copy:
     src: "{{ role_path }}/cluster.pub"
     dest: /root/.ssh/cluster.pub
+    mode: '0644'
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
-- name: Copy /root/.ssh/cluster.pub to "{{ compute_chroot_loc }}/root/cluster.pub" to copy the key on master
-  command: cp "/root/.ssh/cluster.pub" "{{ compute_chroot_loc }}/root/cluster.pub"
-  register: result
-  failed_when: result.rc not in [0]
+- name: Copy /root/.ssh/cluster.pub to compute_chroot_loc/root/cluster.pub to copy the key on master
+  ansible.builtin.copy:
+    src: "/root/.ssh/cluster.pub"
+    dest: "{{ compute_chroot_loc }}/root/cluster.pub"
+    mode: '0644'
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 - name: Copy cluster.pub to role path to lookup the key file on master
-  command: cp "/root/.ssh/cluster.pub" "{{ role_path }}/cluster.pub"
-  register: result
-  failed_when: result.rc not in [0]
+  ansible.builtin.copy:
+    src: "/root/.ssh/cluster.pub"
+    dest: "{{ role_path }}/cluster.pub"
+    mode: '0644'
   when:
-     - inventory_hostname in groups[nt_sms]
-     - enable_warewulf == true
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf
 
 # stateful
 - name: Add cluster.pub to authorized_keys on a computing node
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "/root/.ssh/authorized_keys"
     state: present
-    backrefs: no
-    create: yes
+    backrefs: false
+    create: true
     line: "{{ lookup('file', '{{ role_path }}/cluster.pub') }}"
+    mode: '0600'
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf

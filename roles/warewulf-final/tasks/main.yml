@@ -61,7 +61,7 @@
 # if [[ ${enable_ipoib} -eq 1 ]];then
 - name: Execute ipoib file imports
   when:
-    - enable_ipoib 
+    - enable_ipoib
   block:
   #     wwsh file import /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww
     - name: Execute wwsh file import /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww on master
@@ -219,7 +219,8 @@
 # # Add hosts to cluster (Cont.)
 # wwsh -y provision set "${compute_regex}" --vnfs=centos7.3 --bootstrap=`uname -r` --files=dynamic_hosts,passwd,group,shadow,slurm.conf,munge.key,network
 - name: Add nodes to warewulf data store (Cont.) on master
-  ansible.builtin.command: wwsh -d -v -y provision set "{{ compute_regex }}" --vnfs=centos7.3 --bootstrap=`uname -r` --files=dynamic_hosts,passwd,group,shadow,slurm.conf,munge.key,network
+  ansible.builtin.command: 'wwsh -d -v -y provision set "{{ compute_regex }}" --vnfs=centos7.3 --bootstrap=`uname -r` \
+                            --files=dynamic_hosts,passwd,group,shadow,slurm.conf,munge.key,network'
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf
