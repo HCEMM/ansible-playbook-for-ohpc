@@ -17,18 +17,18 @@
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/warewulf/tasks/main.yml
+# roles/warewulf/tasks/main.yml
 #
 
-#yum -y groupinstall ohpc-warewulf
+# yum -y groupinstall ohpc-warewulf
 - name: Install ohpc-warewulf on master
-  yum: 
-    state: latest
+  ansible.builtin.dnf: 
+    state: present
     name:
       - ohpc-warewulf
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 # -----------------------------------------------------------
 # Complete basic Warewulf setup for master node (Section 3.5)

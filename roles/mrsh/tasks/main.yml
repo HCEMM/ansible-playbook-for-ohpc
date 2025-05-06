@@ -17,68 +17,67 @@
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/mrsh/tasks/main.yml
+# roles/mrsh/tasks/main.yml
 #
+- name: Setup mrsh
+  when:
+    - enable_mrsh
 
-- block:
-#if [[ ${enable_mrsh} -eq 1 ]];then
+  block:
+# if [[ ${enable_mrsh} -eq 1 ]];then
 #     # Install mrsh
 #     yum -y install mrsh-ohpc mrsh-rsh-compat-ohpc
-  - name: Install mrsh-ohpc mrsh-rsh-compat-ohpc on master
-    yum:
-      state: latest
-      name:
-        - mrsh-ohpc
-        - mrsh-rsh-compat-ohpc
-    when:
-      - inventory_hostname in groups[nt_sms]
+    - name: Install mrsh-ohpc mrsh-rsh-compat-ohpc on master
+      ansible.builtin.dnf:
+        state: present
+        name:
+          - mrsh-ohpc
+          - mrsh-rsh-compat-ohpc
+      when:
+        - inventory_hostname in groups[nt_sms]
 
-  - name: Install mrsh-ohpc mrsh-rsh-compat-ohpc mrsh-server-ohpc on a computing node
-    yum:
-      state: latest
-      name:
-        - mrsh-ohpc
-        - mrsh-rsh-compat-ohpc
-        - mrsh-server-ohpc
-    when:
-      - inventory_hostname in groups[nt_cnodes]
-      - enable_warewulf == false
+    - name: Install mrsh-ohpc mrsh-rsh-compat-ohpc mrsh-server-ohpc on a computing node
+      ansible.builtin.dnf:
+        state: present
+        name:
+          - mrsh-ohpc
+          - mrsh-rsh-compat-ohpc
+          - mrsh-server-ohpc
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf
 
-#     echo "mshell          21212/tcp                  # mrshd" >> /etc/services
-  - name: Identify mshell in services file on sms and a computing node and a development node
-    lineinfile:
-      path: /etc/services
-      state: present
-      backrefs: no
-      regexp: '^mshell          21212/tcp                 # mrshd$'
-      line: "mshell          21212/tcp                 # mrshd"
-    when:
-      ( inventory_hostname in groups[nt_sms] ) or
-      ( inventory_hostname in groups[nt_devnodes] ) or
-      ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+  #     echo "mshell          21212/tcp                  # mrshd" >> /etc/services
+    - name: Identify mshell in services file on sms and a computing node and a development node
+      ansible.builtin.lineinfile:
+        path: /etc/services
+        state: present
+        backrefs: false
+        regexp: '^mshell          21212/tcp                 # mrshd$'
+        line: "mshell          21212/tcp                 # mrshd"
+      when:
+        ( inventory_hostname in groups[nt_sms] ) or
+        ( inventory_hostname in groups[nt_devnodes] ) or
+        ( ( inventory_hostname in groups[nt_cnodes] ) and ( not enable_warewulf ) )
 
-#     echo "mlogin            541/tcp                  # mrlogind" >> /etc/services
-  - name: Identify mlogin in services file on sms and a computing node and a development node
-    lineinfile:
-      path: /etc/services
-      state: present
-      backrefs: no
-      regexp: '^mlogin            541/tcp                 # mrlogind$'
-      line: "mlogin            541/tcp                 # mrlogind"
-    when:
-      ( inventory_hostname in groups[nt_sms] ) or
-      ( inventory_hostname in groups[nt_devnodes] ) or
-      ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+  #     echo "mlogin            541/tcp                  # mrlogind" >> /etc/services
+    - name: Identify mlogin in services file on sms and a computing node and a development node
+      ansible.builtin.lineinfile:
+        path: /etc/services
+        state: present
+        backrefs: false
+        regexp: '^mlogin            541/tcp                 # mrlogind$'
+        line: "mlogin            541/tcp                 # mrlogind"
+      when:
+        ( inventory_hostname in groups[nt_sms] ) or
+        ( inventory_hostname in groups[nt_devnodes] ) or
+        ( ( inventory_hostname in groups[nt_cnodes] ) and ( not enable_warewulf ) )
 
-  - name: Enable xinetd for computing on a computing node
-    command: systemctl enable xinetd
-    register: result
-    failed_when: result.rc not in [0]
-    when:
-      - inventory_hostname in groups[nt_cnodes]
-      - enable_warewulf == false
-
-  when:
-    - enable_mrsh == true
-#fi
-
+    - name: Enable xinetd for computing on a computing node
+      ansible.builtin.service:
+        name: xinetd
+        state: enabled
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - not enable_warewulf
+  # fi

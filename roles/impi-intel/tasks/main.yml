@@ -2,10 +2,10 @@
 
 # This file is distributed under the Apache License (the
 # "License"); you may not use this file except in compliance
-# with the License.  See the LICENSE file distributed with 
+# with the License.  See the LICENSE file distributed with
 # this work for additional information regarding copyright
-# ownership. 
-# 
+# ownership.
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -13,39 +13,50 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# This file is derived from recipe.sh in OpenHPC distribution 
+# This file is derived from recipe.sh in OpenHPC distribution
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/impi-intel/tasks/main.yml
+# roles/impi-intel/tasks/main.yml
 #
 
-#if [[ ${enable_intel_packages} -eq 1 ]];then
-- block:
-#     yum -y install intel-mpi-devel-ohpc
-  - name: Install Optional Development Tools for use with Intel Parallel Studio on master and a development node
-    yum: name=intel-mpi-devel-ohpc state=latest
-    when:
-      ( inventory_hostname in groups[nt_devnodes] ) or
-      ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
-
-  - name: Install Optional Development Tools for use with Intel Parallel Studio for a computing image on master
-    yum: name=intel-mpi-devel-ohpc installroot="{{ compute_chroot_loc }}" state=latest
-    when: 
-      - inventory_hostname in groups[nt_sms]
-      - enable_warewulf == true
-
-  - name: Install Development libraries for use with Intel Parallel Studio on master and a development node
-    yum: name=ohpc-parallel-libs-intel-impi state=latest
-    when:
-      ( inventory_hostname in groups[nt_devnodes] ) or
-      ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )  
-
-  - name: Install Development libraries for use with Intel Parallel Studio for a computing image on master
-    yum: name=ohpc-parallel-libs-intel-impi installroot="{{ compute_chroot_loc }}" state=latest
-    when:
-      - inventory_hostname in groups[nt_sms] 
-      - enable_warewulf == true 
-
+# if [[ ${enable_intel_packages} -eq 1 ]];then
+- name: Install Development Tools for use with Intel Parallel Studio
   when:
-    - enable_intel_packages == true
+    - enable_intel_packages
+
+  block:
+  #     yum -y install intel-mpi-devel-ohpc
+    - name: Install Optional Development Tools for use with Intel Parallel Studio on master and a development node
+      ansible.builtin.dnf:
+        name: intel-mpi-devel-ohpc
+        state: present
+      when:
+        ( inventory_hostname in groups[nt_devnodes] ) or
+        ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf ) )
+
+    - name: Install Optional Development Tools for use with Intel Parallel Studio for a computing image on master
+      ansible.builtin.dnf:
+        name: intel-mpi-devel-ohpc
+        installroot: "{{ compute_chroot_loc }}"
+        state: present
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
+
+    - name: Install Development libraries for use with Intel Parallel Studio on master and a development node
+      ansible.builtin.dnf:
+        name: ohpc-parallel-libs-intel-impi
+        state: present
+      when:
+        ( inventory_hostname in groups[nt_devnodes] ) or
+        ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf ) )
+
+    - name: Install Development libraries for use with Intel Parallel Studio for a computing image on master
+      ansible.builtin.dnf:
+        name: ohpc-parallel-libs-intel-impi
+        installroot: "{{ compute_chroot_loc }}"
+        state: present
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf

@@ -17,71 +17,100 @@
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/rsyslog/tasks/main.yml
+# roles/rsyslog/tasks/main.yml
 #
 
 # --------------------------------------------------------
 # Configure rsyslog on SMS and computes (Section 3.7.4.10)
 # --------------------------------------------------------
 - name: Define computing node forwarding destination on a computing node
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "/etc/rsyslog.conf"
     state: present
-    backrefs: no
+    backrefs: false
     regexp: '^\*\.\* @{{ sms_ip }}{{ d_colon }}514$'
     line: "*.* @{{ sms_ip }}{{ d_colon }}514"
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
 - name: Disable most local logging on computes for info on a computing node
-  replace: dest="/etc/rsyslog.conf" regexp='^\*\.info' replace="#*.info" backup=yes
+  ansible.builtin.replace:
+    dest: "/etc/rsyslog.conf"
+    regexp: '^\*\.info'
+    replace: "#*.info"
+    backup: true
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
 - name: Disable most local logging on computes for authpriv on a computing node
-  replace: dest="/etc/rsyslog.conf" regexp='^authpriv' replace="#authpriv" backup=yes
+  ansible.builtin.replace:
+    dest: "/etc/rsyslog.conf"
+    regexp: '^authpriv'
+    replace: "#authpriv"
+    backup: true
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
 - name: Disable most local logging on computes for mail on a computing node
-  replace: dest="/etc/rsyslog.conf" regexp='^mail' replace="#mail" backup=yes
+  ansible.builtin.replace:
+    dest: "/etc/rsyslog.conf"
+    regexp: '^mail'
+    replace: "#mail"
+    backup: true
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
 - name: Disable most local logging on computes for cron on a computing node
-  replace: dest="/etc/rsyslog.conf" regexp='^cron' replace="#cron" backup=yes
+  ansible.builtin.replace:
+    dest: "/etc/rsyslog.conf"
+    regexp: '^cron'
+    replace: "#cron"
+    backup: true
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
 - name: Disable most local logging on computes for uucp on a computing node
-  replace: dest="/etc/rsyslog.conf" regexp='^uucp' replace="#uucp" backup=yes
+  ansible.builtin.replace:
+    dest: "/etc/rsyslog.conf"
+    regexp: '^uucp'
+    replace: "#uucp"
+    backup: true
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
 - name: Configure to receive messages module of rsyslog on a computing node
-  replace: dest=/etc/rsyslog.conf regexp='#\$ModLoad imudp' replace="$ModLoad imudp" backup=yes
+  ansible.builtin.replace:
+    dest: /etc/rsyslog.conf
+    regexp: '#\$ModLoad imudp'
+    replace: "$ModLoad imudp"
+    backup: true
   when:
     ( ( inventory_hostname in groups[nt_sms] ) or
     ( inventory_hostname in groups[nt_devnodes] ) or
-    ( inventory_hostname in groups[nt_cnodes] ) ) and ( enable_warewulf == false )
+    ( inventory_hostname in groups[nt_cnodes] ) ) and ( not enable_warewulf )
 
 - name: Configure to receive messages port for rsyslog on a computing node
-  replace: dest=/etc/rsyslog.conf regexp='#\$UDPServerRun 514' replace="$UDPServerRun 514" backup=yes
+  ansible.builtin.replace:
+    dest: /etc/rsyslog.conf
+    regexp: '#\$UDPServerRun 514'
+    replace: "$UDPServerRun 514"
+    backup: true
   when:
     ( ( inventory_hostname in groups[nt_sms] ) or
     ( inventory_hostname in groups[nt_devnodes] ) or
-    ( inventory_hostname in groups[nt_cnodes] ) ) and ( enable_warewulf == false )
+    ( inventory_hostname in groups[nt_cnodes] ) ) and ( not enable_warewulf )
 
 - name: Restart rsyslog on a computing node
-  service: name=rsyslog state=restarted
+  ansible.builtin.service:
+    name: rsyslog
+    state: restarted
   when:
     ( inventory_hostname in groups[nt_sms] ) or
     ( inventory_hostname in groups[nt_devnodes] ) or
-    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
-
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( not enable_warewulf ) )

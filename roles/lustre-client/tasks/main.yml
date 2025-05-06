@@ -2,10 +2,10 @@
 
 # This file is distributed under the Apache License (the
 # "License"); you may not use this file except in compliance
-# with the License.  See the LICENSE file distributed with 
+# with the License.  See the LICENSE file distributed with
 # this work for additional information regarding copyright
-# ownership. 
-# 
+# ownership.
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -13,137 +13,148 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# This file is derived from recipe.sh in OpenHPC distribution 
+# This file is derived from recipe.sh in OpenHPC distribution
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/lustre-client/tasks/main.yml
+# roles/lustre-client/tasks/main.yml
 #
 
-- block:
-#if [[ ${enable_lustre_client} -eq 1 ]];then
+# if [[ ${enable_lustre_client} -eq 1 ]];then
+- name: Setup Lustre
+  when:
+    enable_lustre_client
+
+  block:
 #     # Install Lustre client on master
 #     yum -y install lustre-client-ohpc lustre-client-ohpc-modules
-  - name: install Lustre client on master
-    yum:
-      state: latest
-      name:
-        - lustre-client-ohpc
-        - lustre-client-ohpc-modules
-    when:
-      - inventory_hostname in groups[nt_sms]
+    - name: Install Lustre client on master
+      ansible.builtin.dnf:
+        state: present
+        name:
+          - lustre-client-ohpc
+          - lustre-client-ohpc-modules
+      when:
+        - inventory_hostname in groups[nt_sms]
 
-#     # Enable lustre in a computing node
-#     yum -y --installroot=$CHROOT install lustre-client-ohpc lustre-client-ohpc-modules
-  - name: Install Lustre-client for computing node images on master
-    yum:
-      state: latest
-      installroot: "{{ compute_chroot_loc }}"
-      name:
-        - lustre-client-ohpc
-        - lustre-client-ohpc-modules
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_warewulf == true
+  #     # Enable lustre in a computing node
+  #     yum -y --installroot=$CHROOT install lustre-client-ohpc lustre-client-ohpc-modules
+    - name: Install Lustre-client for computing node images on master
+      ansible.builtin..dnf:
+        state: present
+        installroot: "{{ compute_chroot_loc }}"
+        name:
+          - lustre-client-ohpc
+          - lustre-client-ohpc-modules
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
 
-  - name: Install Lustre-client on a computing node
-    yum:
-      state: latest
-      name:
-        - lustre-client-ohpc
-        - lustre-client-ohpc-modules
-    when:
-      - inventory_hostname in groups[nt_cnodes]
-      - enable_warewulf == false
+    - name: Install Lustre-client on a computing node
+      ansible.builtin.dnf:
+        state: present
+        name:
+          - lustre-client-ohpc
+          - lustre-client-ohpc-modules
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf
 
-#     mkdir $CHROOT/mnt/lustre
-  - name: lustre mkdir for computing node images on master
-    file: path="{{ compute_chroot_loc }}/mnt/lustre" state=directory
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_warewulf == true
+  #     mkdir $CHROOT/mnt/lustre
+    - name: Lustre mkdir for computing node images on master
+      ansible.builtin.file:
+        path: "{{ compute_chroot_loc }}/mnt/lustre"
+        state: directory
+        mode: '0755'
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
 
-  - name: lustre mkdir on a computing node
-    file: path=/mnt/lustre state=directory
-    when:
-      - inventory_hostname in groups[nt_cnodes]
-      - enable_warewulf == false
+    - name: Lustre mkdir on a computing node
+      ansible.builtin.file:
+        path: /mnt/lustre
+        state: directory
+        mode: '0755'
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf
 
-#     echo "${mgs_fs_name} /mnt/lustre lustre defaults,_netdev,localflock 0 0" >> $CHROOT/etc/fstab
-  - name: configure fstab of lustre for computing node images on master
-    lineinfile:
-      path: "{{ compute_chroot_loc }}/etc/fstab"
-      state: present
-      backrefs: no
-      regexp: '^{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0$'
-      line: "{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0"
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_warewulf == true
+  #     echo "${mgs_fs_name} /mnt/lustre lustre defaults,_netdev,localflock 0 0" >> $CHROOT/etc/fstab
+    - name: Configure fstab of lustre for computing node images on master
+      ansible.builtin.lineinfile:
+        path: "{{ compute_chroot_loc }}/etc/fstab"
+        state: present
+        backrefs: false
+        regexp: '^{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0$'
+        line: "{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0"
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
 
-  - name: configure fstab of lustre on a computing node
-    lineinfile:
-      path: "/etc/fstab"
-      state: present
-      backrefs: no
-      regexp: '^{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0$'
-      line: "{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0"
-    when:
-      - inventory_hostname in groups[nt_cnodes]
-      - enable_warewulf == false
+    - name: Configure fstab of lustre on a computing node
+      ansible.builtin.lineinfile:
+        path: "/etc/fstab"
+        state: present
+        backrefs: false
+        regexp: '^{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0$'
+        line: "{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0"
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf
 
-#     # Enable o2ib for Lustre
-#     echo "options lnet networks=o2ib(ib0)" >> /etc/modprobe.d/lustre.conf
-  - name: Enable o2ib for Lustre on master
-    lineinfile:
-      path: /etc/modprobe.d/lustre.conf
-      state: present
-      backrefs: no
-      regexp: '^options lnet networks=o2ib\(ib0\)$'
-      line: "options lnet networks=o2ib(ib0)"
-    when:
-      - inventory_hostname in groups[nt_sms]
+  #     # Enable o2ib for Lustre
+  #     echo "options lnet networks=o2ib(ib0)" >> /etc/modprobe.d/lustre.conf
+    - name: Enable o2ib for Lustre on master
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/lustre.conf
+        state: present
+        backrefs: false
+        regexp: '^options lnet networks=o2ib\(ib0\)$'
+        line: "options lnet networks=o2ib(ib0)"
+      when:
+        - inventory_hostname in groups[nt_sms]
 
-#     echo "options lnet networks=o2ib(ib0)" >> $CHROOT/etc/modprobe.d/lustre.conf
-  - name: Enable o2ib for Lustre for computing node images on master
-    lineinfile:
-      path: "{{ compute_chroot_loc }}/etc/modprobe.d/lustre.conf"
-      state: present
-      backrefs: no
-      regexp: '^options lnet networks=o2ib\(ib0\)$'
-      line: "options lnet networks=o2ib(ib0)"
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_warewulf == true
+  #     echo "options lnet networks=o2ib(ib0)" >> $CHROOT/etc/modprobe.d/lustre.conf
+    - name: Enable o2ib for Lustre for computing node images on master
+      ansible.builtin.lineinfile:
+        path: "{{ compute_chroot_loc }}/etc/modprobe.d/lustre.conf"
+        state: present
+        backrefs: false
+        regexp: '^options lnet networks=o2ib\(ib0\)$'
+        line: "options lnet networks=o2ib(ib0)"
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
 
-  - name: Enable o2ib for Lustre on a computing node
-    lineinfile:
-      path: "/etc/modprobe.d/lustre.conf"
-      state: present
-      backrefs: no
-      regexp: '^options lnet networks=o2ib\(ib0\)$'
-      line: "options lnet networks=o2ib(ib0)"
-    when:
-      - inventory_hostname in groups[nt_cnodes]
-      - enable_warewulf == false
+    - name: Enable o2ib for Lustre on a computing node
+      ansible.builtin.lineinfile:
+        path: "/etc/modprobe.d/lustre.conf"
+        state: present
+        backrefs: false
+        regexp: '^options lnet networks=o2ib\(ib0\)$'
+        line: "options lnet networks=o2ib(ib0)"
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf
 
-#     # mount Lustre client on master
-#     mkdir /mnt/lustre
-  - name: lustre mkdir on master
-    file: path=/mnt/lustre state=directory
-    when:
-      - inventory_hostname in groups[nt_sms]
+  #     # mount Lustre client on master
+  #     mkdir /mnt/lustre
+    - name: Lustre mkdir on master
+      ansible.builtin.file:
+        path: /mnt/lustre
+        state: directory
+        mode: '0755'
+      when:
+        - inventory_hostname in groups[nt_sms]
 
-#     mount -t lustre -o localflock ${mgs_fs_name} /mnt/lustre
-  - name: mount Lustre client on master
-    mount:
-      name: "/mnt/lustre" 
-      src: "{{ mgs_fs_name }}" 
-      fstype: lustre
-      opts: "localflock" 
-      state: mounted
-    when:
-      - inventory_hostname in groups[nt_sms]
-  when: 
-    enable_lustre_client == true
-#fi
+  #     mount -t lustre -o localflock ${mgs_fs_name} /mnt/lustre
+    - name: Mount Lustre client on master
+      ansible.posix.mount:
+        name: "/mnt/lustre"
+        src: "{{ mgs_fs_name }}"
+        fstype: lustre
+        opts: "localflock"
+        state: mounted
+      when:
+        - inventory_hostname in groups[nt_sms]
+  # fi

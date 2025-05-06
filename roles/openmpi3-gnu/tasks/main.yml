@@ -2,10 +2,10 @@
 
 # This file is distributed under the Apache License (the
 # "License"); you may not use this file except in compliance
-# with the License.  See the LICENSE file distributed with 
+# with the License.  See the LICENSE file distributed with
 # this work for additional information regarding copyright
-# ownership. 
-# 
+# ownership.
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -13,30 +13,35 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# This file is derived from recipe.sh in OpenHPC distribution 
+# This file is derived from recipe.sh in OpenHPC distribution
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/openmpi3-gnu/tasks/main.yml
+# roles/openmpi3-gnu/tasks/main.yml
 #
 
-#if [[ ${enable_mpi_defaults} -eq 1 ]];then
+# if [[ ${enable_mpi_defaults} -eq 1 ]];then
 #     yum -y install openmpi-gnu8-ohpc mpich-gnu8-ohpc ohpc-gnu8-mpich-parallel-libs ohpc-gnu8-openmpi3-parallel-libs
-#elif [[ ${enable_mpi_opa} -eq 1 ]];then
+# elif [[ ${enable_mpi_opa} -eq 1 ]];then
 #     yum -y install openmpi-psm2-gnu8-ohpc mvapich2-psm2-gnu8-ohpc
-#fi
+# fi
 - name: Install default MPI Stacks on master and a development node
-  yum: name="ohpc-gnu{{ gnu_version }}-openmpi3-parallel-libs" state=latest
-  when: 
-    ( enable_mpi_defaults == true ) and
-    ( enable_mpi_opa == false ) and
+  ansible.builtin.dnf:
+    name: "ohpc-gnu{{ gnu_version }}-openmpi3-parallel-libs"
+    state: present
+  when:
+    ( enable_mpi_defaults ) and
+    ( not enable_mpi_opa ) and
     ( ( inventory_hostname in groups[ nt_devnodes ] ) or
-    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) ) )
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( not enable_warewulf ) ) )
 
 - name: Install default MPI Stacks for a computing image on master
-  yum: name="ohpc-gnu{{ gnu_version }}-openmpi3-parallel-libs" installroot="{{ compute_chroot_loc }}" state=latest
-  when: 
-    - enable_mpi_defaults == true
-    - enable_mpi_opa == false
-    - inventory_hostname in groups[nt_sms] 
-    - enable_warewulf == true
+  ansible.builtin.dnf:
+    name: "ohpc-gnu{{ gnu_version }}-openmpi3-parallel-libs"
+    installroot: "{{ compute_chroot_loc }}"
+    state: present
+  when:
+    - enable_mpi_defaults
+    - not enable_mpi_opa
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf

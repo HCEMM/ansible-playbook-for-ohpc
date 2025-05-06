@@ -2,10 +2,10 @@
 
 # This file is distributed under the Apache License (the
 # "License"); you may not use this file except in compliance
-# with the License.  See the LICENSE file distributed with 
+# with the License.  See the LICENSE file distributed with
 # this work for additional information regarding copyright
-# ownership. 
-# 
+# ownership.
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -13,92 +13,102 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# This file is derived from recipe.sh in OpenHPC distribution 
+# This file is derived from recipe.sh in OpenHPC distribution
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/ntp/tasks/main.yml
+# roles/ntp/tasks/main.yml
 #
 
 # Enable NTP services on master
-#systemctl enable ntpd.service
+# systemctl enable ntpd.service
 - name: Enable NTP services on master
-  service: name=ntpd enabled=yes
+  ansible.builtin.service:
+    name: ntpd
+    enabled: true
   when:
     - inventory_hostname in groups[nt_sms]
 
-#echo "server ${ntp_server}" >> /etc/ntp.conf
+# echo "server ${ntp_server}" >> /etc/ntp.conf
 - name: Set up NTP server on master
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "/etc/ntp.conf"
     state: present
-    backrefs: no
+    backrefs: false
     regexp: '^server {{ ntp_server }}$'
     line: "server {{ ntp_server }}"
   when:
     - inventory_hostname in groups[nt_sms]
 
-#systemctl restart ntpd
+# systemctl restart ntpd
 - name: Restart NTP services on master
-  service: name=ntpd state=restarted
+  ansible.builtin.service:
+    name: ntpd
+    state: restarted
   when:
     - inventory_hostname in groups[nt_sms]
 
-#yum -y --installroot=$CHROOT install ntp
+# yum -y --installroot=$CHROOT install ntp
 - name: Install ntp for computing node images on master
-  yum: name=ntp installroot="{{ compute_chroot_loc }}" state=latest
+  ansible.builtin.dnf:
+    name: ntp
+    installroot: "{{ compute_chroot_loc }}"
+    state: present
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 - name: Install ntp on a computing node
-  yum: name=ntp state=latest
+  ansible.builtin.dnf:
+    name: ntp
+    state: present
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
-#chroot $CHROOT systemctl enable ntpd
-- name: systemctl enable ntpd for computing node images on master
-  command: "chroot {{ compute_chroot_loc }} systemctl enable ntpd"
-  register: result
-  failed_when: result.rc not in [0]
+# chroot $CHROOT systemctl enable ntpd
+- name: Systemctl enable ntpd for computing node images on master
+  ansible.builtin.command: "chroot {{ compute_chroot_loc }} systemctl enable ntpd"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
-- name: systemctl enable ntpd on a computing node
-  service: name=ntpd enabled=yes
+- name: Systemctl enable ntpd on a computing node
+  ansible.builtin.service:
+    name: ntpd
+    enabled: true
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
-#echo "server ${sms_ip}" >> $CHROOT/etc/ntp.conf
+# echo "server ${sms_ip}" >> $CHROOT/etc/ntp.conf
 - name: Set up ntp server for computing node images on master
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ compute_chroot_loc }}/etc/ntp.conf"
     state: present
-    backrefs: no
+    backrefs: false
     regexp: '^server {{ sms_ip }}$'
     line: "server {{ sms_ip }}"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 - name: Set up ntp server on a computing node
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "/etc/ntp.conf"
     state: present
-    backrefs: no
+    backrefs: false
     regexp: '^server {{ sms_ip }}$'
     line: "server {{ sms_ip }}"
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
 # Restart ntpd on computing nodes is needed for non-warewulf environment
 - name: Restart ntpd on a computing node
-  service: name=ntpd state=restarted
+  ansible.builtin.service:
+    name: ntpd
+    state: restarted
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
-
+    - not enable_warewulf

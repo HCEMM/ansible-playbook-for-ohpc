@@ -2,10 +2,10 @@
 
 # This file is distributed under the Apache License (the
 # "License"); you may not use this file except in compliance
-# with the License.  See the LICENSE file distributed with 
+# with the License.  See the LICENSE file distributed with
 # this work for additional information regarding copyright
-# ownership. 
-# 
+# ownership.
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -13,42 +13,41 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# This file is derived from recipe.sh in OpenHPC distribution 
+# This file is derived from recipe.sh in OpenHPC distribution
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/net-infinipath/tasks/main.yml
+# roles/net-infinipath/tasks/main.yml
 #
 
-#yum -y install infinipath-psm
+# yum -y install infinipath-psm
 - name: Install infinipath-psm on master
-  yum:
-    state: latest
+  ansible.builtin.dnf:
+    state: present
     name:
       - infinipath-psm
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_intel_packages == true
+    - enable_intel_packages
 
-#yum -y --installroot=$CHROOT install infinipath-psm
+# yum -y --installroot=$CHROOT install infinipath-psm
 - name: Install infinipath-psm to computing node images on master
-  yum:
-    state: latest
+  ansible.builtin.dnf:
+    state: present
     installroot: "{{ compute_chroot_loc }}"
     name:
       - infinipath-psm
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-    - enable_intel_packages == true
+    - enable_warewulf
+    - enable_intel_packages
 
 - name: Install infinipath-psm on computing nodes
-  yum:
-    state: latest
+  ansible.builtin.dnf:
+    state: present
     name:
       - infinipath-psm
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
-    - enable_intel_packages == true
-
+    - not enable_warewulf
+    - enable_intel_packages

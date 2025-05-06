@@ -2,10 +2,10 @@
 
 # This file is distributed under the Apache License (the
 # "License"); you may not use this file except in compliance
-# with the License.  See the LICENSE file distributed with 
+# with the License.  See the LICENSE file distributed with
 # this work for additional information regarding copyright
-# ownership. 
-# 
+# ownership.
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -13,45 +13,46 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# This file is derived from recipe.sh in OpenHPC distribution 
+# This file is derived from recipe.sh in OpenHPC distribution
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/third-party-libs-gnu/tasks/main.yml
+# roles/third-party-libs-gnu/tasks/main.yml
 #
 
 # ---------------------------------------------------
 # Install 3rd Party Libraries and Tools (Section 4.6)
 # ---------------------------------------------------
-#yum -y groupinstall ohpc-gnu8-serial-libs
-#yum -y groupinstall ohpc-gnu8-io-libs
-#yum -y groupinstall ohpc-gnu8-python-libs
-#yum -y groupinstall ohpc-gnu8-runtimes
-- block:
-  - name: Install packages 3rd Party Libraries and Tools on master and a development node
-    yum:
-      state: latest
-      name:
-        - "ohpc-gnu{{ gnu_version }}-serial-libs"
-        - "ohpc-gnu{{ gnu_version }}-io-libs"
-        - "ohpc-gnu{{ gnu_version }}-python-libs"
-        - "ohpc-gnu{{ gnu_version }}-runtimes"
-    when: 
-      ( inventory_hostname in groups[nt_devnodes] ) or
-      ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
-
-  - name: Install packages 3rd Party Libraries and Tools for a computing image on master
-    yum:
-      state: latest
-      installroot: "{{ compute_chroot_loc }}"
-      name:
-        - "ohpc-gnu{{ gnu_version }}-serial-libs"
-        - "ohpc-gnu{{ gnu_version }}-io-libs"
-        - "ohpc-gnu{{ gnu_version }}-python-libs"
-        - "ohpc-gnu{{ gnu_version }}-runtimes"
-    when: 
-      - inventory_hostname in groups[nt_sms] 
-      - enable_warewulf == true
-
+# yum -y groupinstall ohpc-gnu8-serial-libs
+# yum -y groupinstall ohpc-gnu8-io-libs
+# yum -y groupinstall ohpc-gnu8-python-libs
+# yum -y groupinstall ohpc-gnu8-runtimes
+- name: Install packages 3rd Party Libraries and Tools
   when:
-    - enable_intel_packages == false
+    - not enable_intel_packages
+
+  block:
+    - name: Install packages 3rd Party Libraries and Tools on master and a development node
+      ansible.builtin.dnf:
+        state: present
+        name:
+          - "ohpc-gnu{{ gnu_version }}-serial-libs"
+          - "ohpc-gnu{{ gnu_version }}-io-libs"
+          - "ohpc-gnu{{ gnu_version }}-python-libs"
+          - "ohpc-gnu{{ gnu_version }}-runtimes"
+      when:
+        ( inventory_hostname in groups[nt_devnodes] ) or
+        ( ( inventory_hostname in groups[nt_cnodes] ) and ( not enable_warewulf ) )
+
+    - name: Install packages 3rd Party Libraries and Tools for a computing image on master
+      ansible.builtin.dnf:
+        state: present
+        installroot: "{{ compute_chroot_loc }}"
+        name:
+          - "ohpc-gnu{{ gnu_version }}-serial-libs"
+          - "ohpc-gnu{{ gnu_version }}-io-libs"
+          - "ohpc-gnu{{ gnu_version }}-python-libs"
+          - "ohpc-gnu{{ gnu_version }}-runtimes"
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf

@@ -2,10 +2,10 @@
 
 # This file is distributed under the Apache License (the
 # "License"); you may not use this file except in compliance
-# with the License.  See the LICENSE file distributed with 
+# with the License.  See the LICENSE file distributed with
 # this work for additional information regarding copyright
-# ownership. 
-# 
+# ownership.
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -13,310 +13,279 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# This file is derived from recipe.sh in OpenHPC distribution 
+# This file is derived from recipe.sh in OpenHPC distribution
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/warewulf/tasks/main.yml
+# roles/warewulf/tasks/main.yml
 #
 
 # ----------------------------
 # Import files (Section 3.7.5)
 # ----------------------------
-#wwsh file import /etc/passwd
-- name: Execute wwsh file import /etc/passwd on master 
-  command: wwsh file import /etc/passwd
-  register: result
-  failed_when: result.rc not in [0]
+# wwsh file import /etc/passwd
+- name: Execute wwsh file import /etc/passwd on master
+  ansible.builtin.command: wwsh file import /etc/passwd
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
-#wwsh file import /etc/group
-- name: Execute wwsh file import /etc/group on master 
-  command: wwsh file import /etc/group
-  register: result
-  failed_when: result.rc not in [0]
+# wwsh file import /etc/group
+- name: Execute wwsh file import /etc/group on master
+  ansible.builtin.command: wwsh file import /etc/group
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
-#wwsh file import /etc/shadow 
-- name: Execute wwsh file import /etc/shadow on master 
-  command: wwsh file import /etc/shadow
-  register: result
-  failed_when: result.rc not in [0]
+# wwsh file import /etc/shadow
+- name: Execute wwsh file import /etc/shadow on master
+  ansible.builtin.command: wwsh file import /etc/shadow
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
-#wwsh file import /etc/slurm/slurm.conf
-- name: Execute wwsh file import /etc/slurm/slurm.conf on master 
-  command: wwsh file import /etc/slurm/slurm.conf
-  register: result
-  failed_when: result.rc not in [0]
+# wwsh file import /etc/slurm/slurm.conf
+- name: Execute wwsh file import /etc/slurm/slurm.conf on master
+  ansible.builtin.command: wwsh file import /etc/slurm/slurm.conf
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
-#wwsh file import /etc/munge/munge.key
-- name: Execute wwsh file import /etc/munge/munge.key on master 
-  command: wwsh file import /etc/munge/munge.key
-  register: result
-  failed_when: result.rc not in [0]
+# wwsh file import /etc/munge/munge.key
+- name: Execute wwsh file import /etc/munge/munge.key on master
+  ansible.builtin.command: wwsh file import /etc/munge/munge.key
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
-#if [[ ${enable_ipoib} -eq 1 ]];then
-- block:
-
-#     wwsh file import /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww
-  - name: Execute wwsh file import /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww on master 
-    command: wwsh file import /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww
-    register: result
-    failed_when: result.rc not in [0]
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_warewulf == true
-
-#     wwsh -y file set ifcfg-ib0.ww --path=/etc/sysconfig/network-scripts/ifcfg-ib0
-  - name: Execute wwsh -y file set ifcfg-ib0.ww --path=/etc/sysconfig/network-scripts/ifcfg-ib0 on master 
-    command: wwsh -y file set ifcfg-ib0.ww --path=/etc/sysconfig/network-scripts/ifcfg-ib0
-    register: result
-    failed_when: result.rc not in [0]
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_warewulf == true
-
+# if [[ ${enable_ipoib} -eq 1 ]];then
+- name: Execute ipoib file imports
   when:
-    - enable_ipoib == true
+    - enable_ipoib 
+  block:
+  #     wwsh file import /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww
+    - name: Execute wwsh file import /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww on master
+      ansible.builtin.command: wwsh file import /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
 
-#fi
+  #     wwsh -y file set ifcfg-ib0.ww --path=/etc/sysconfig/network-scripts/ifcfg-ib0
+    - name: Execute wwsh -y file set ifcfg-ib0.ww --path=/etc/sysconfig/network-scripts/ifcfg-ib0 on master
+      ansible.builtin.command: wwsh -y file set ifcfg-ib0.ww --path=/etc/sysconfig/network-scripts/ifcfg-ib0
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf
+# fi
 
 # --------------------------------------
 # Assemble bootstrap image (Section 3.8)
 # --------------------------------------
 
 # export WW_CONF=/etc/warewulf/bootstrap.conf
-- block:
-
-  - name: Touch ~/.bashrc on master
-    file: path="{{ ansible_home }}/.bashrc" state=touch
-    when:
-      - enable_warewulf == true
-
-  - name: Add environment variable WW_CONF=/etc/warewulf/bootstrap.conf on master
-    lineinfile:
-      path: "{{ ansible_home }}/.bashrc"
-      state: present
-      backrefs: no
-      regexp: '^export WW_CONF=/etc/warewulf/bootstrap.conf$'
-      line: "export WW_CONF=/etc/warewulf/bootstrap.conf"
-
+- name: Export WW_CONF
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-      
+    - enable_warewulf
+  block:
+    - name: Touch ~/.bashrc on master
+      ansible.builtin.file: path="{{ ansible_home }}/.bashrc" state=touch
+      when:
+        - enable_warewulf
+
+    - name: Add environment variable WW_CONF=/etc/warewulf/bootstrap.conf on master
+      ansible.builtin.lineinfile:
+        path: "{{ ansible_home }}/.bashrc"
+        state: present
+        backrefs: false
+        regexp: '^export WW_CONF=/etc/warewulf/bootstrap.conf$'
+        line: "export WW_CONF=/etc/warewulf/bootstrap.conf"
+
 # echo "drivers += updates/kernel/" >> $WW_CONF
 - name: Add drivers += updates/kernel/ to /etc/warewulf/bootstrap.conf on master
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/warewulf/bootstrap.conf
     state: present
-    backrefs: no
+    backrefs: false
     regexp: '^drivers \+= updates/kernel/$'
     line: "drivers += updates/kernel/"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 - name: Add drivers += overlay to /etc/warewulf/bootstrap.conf on master
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/warewulf/bootstrap.conf
     state: present
-    backrefs: no
+    backrefs: false
     regexp: '^drivers \+= overlay$'
     line: "drivers += overlay"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 # Add additional modules that should be loaded by modprobe
 - name: Add modprobe additional_modules to WW_CONF
   lineinfile:
     path: /etc/warewulf/bootstrap.conf
     state: present
-    backrefs: no
+    backrefs: false
     regexp: '^modprobe \+= "{{ additional_modules }}"$'
     line: "modprobe += {{ additional_modules }}"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
     - additional_modules != ''
 
 # wwbootstrap `uname -r`
 - name: Execute wwbootstrap `uname -r` on master
-  shell: wwbootstrap `uname -r`
-  register: result
-  failed_when: result.rc not in [0]
+  ansible.builtin.command: wwbootstrap `uname -r`
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-    
+    - enable_warewulf
+
 # # Assemble VNFS
 # wwvnfs --chroot $CHROOT
 - name: Execute wwvnfs --chroot "{{ compute_chroot_loc }}" on master
-  shell: wwvnfs --chroot "{{ compute_chroot_loc }}"
-  register: result
-  failed_when: result.rc not in [0]
+  ansible.builtin.command: wwvnfs --chroot "{{ compute_chroot_loc }}"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 # # Add hosts to cluster
 # echo "GATEWAYDEV=${eth_provision}" > /tmp/network.$$
 - name: Create temporary file for /etc/sysconfig/network on master
-  tempfile:
+  ansible.builtin.tempfile:
     state: file
   register: resfile
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 - name: "Set default gateway {{ internal_gateway }} on master"
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ resfile.path }}"
     state: present
-    backrefs: no
+    backrefs: false
     regexp: '^GATEWAYDEV={{ eth_provision }}$'
     line: "GATEWAYDEV={{ eth_provision }}"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 # wwsh -y file import /tmp/network.$$ --name network
 - name: "Execute wwsh -y file import {{ resfile.path }} --name network on master"
-  shell: wwsh -y file import "{{ resfile.path }}" --name network
-  register: result
-  failed_when: result.rc not in [0]
+  ansible.builtin.shell: wwsh -y file import "{{ resfile.path }}" --name network
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 # wwsh -y file set network --path /etc/sysconfig/network --mode=0644 --uid=0
 - name: "Execute wwsh -y file set network --path /etc/sysconfig/network --mode=0644 --uid=0 on master"
-  shell: wwsh -y file set network --path /etc/sysconfig/network --mode=0644 --uid=0
-  register: result
-  failed_when: result.rc not in [0]
+  ansible.builtin.command: wwsh -y file set network --path /etc/sysconfig/network --mode=0644 --uid=0
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
-#Remove tempfile
+# Remove tempfile
 - name: "Remove the temporary file for network on master"
-  file:
+  ansible.builtin.file:
     state: absent
     path: "{{ resfile.path }}"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 # for ((i=0; i<$num_computes; i++)) ; do
 #    wwsh -y node new ${c_name[i]} --ipaddr=${c_ip[i]} --hwaddr=${c_mac[i]} -D ${eth_provision}
 # done
 
 - name: Delete nodes from warewulf data store on master first for idempotence
-  shell: wwsh -d -v -y node delete "{{ item.c_name }}" --ipaddr="{{ item.c_ip }}" --hwaddr="{{ item.c_mac }}" -D "{{ eth_provision }}"
+  ansible.builtin.command: wwsh -d -v -y node delete "{{ item.c_name }}" --ipaddr="{{ item.c_ip }}" --hwaddr="{{ item.c_mac }}" -D "{{ eth_provision }}"
   register: result
-  ignore_errors: yes
+  ignore_errors: true
   with_items: "{{ compute_nodes }}"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 - name: Add nodes to warewulf data store on master
-  shell: wwsh -d -v -y node new "{{ item.c_name }}" --ipaddr="{{ item.c_ip }}" --hwaddr="{{ item.c_mac }}" -D "{{ eth_provision }}"
-  register: result
-  failed_when: result.rc not in [0]
+  ansible.builtin.command: wwsh -d -v -y node new "{{ item.c_name }}" --ipaddr="{{ item.c_ip }}" --hwaddr="{{ item.c_mac }}" -D "{{ eth_provision }}"
   with_items: "{{ compute_nodes }}"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 # # Add hosts to cluster (Cont.)
 # wwsh -y provision set "${compute_regex}" --vnfs=centos7.3 --bootstrap=`uname -r` --files=dynamic_hosts,passwd,group,shadow,slurm.conf,munge.key,network
 - name: Add nodes to warewulf data store (Cont.) on master
-  shell: wwsh -d -v -y provision set "{{ compute_regex }}" --vnfs=centos7.3 --bootstrap=`uname -r` --files=dynamic_hosts,passwd,group,shadow,slurm.conf,munge.key,network
-  register: result
-  failed_when: result.rc not in [0]
+  ansible.builtin.command: wwsh -d -v -y provision set "{{ compute_regex }}" --vnfs=centos7.3 --bootstrap=`uname -r` --files=dynamic_hosts,passwd,group,shadow,slurm.conf,munge.key,network
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
 # # Optionally, add arguments to bootstrap kernel
 # if [[ ${enable_kargs} ]]; then
-- block:
-
 #    wwsh provision set "${compute_regex}" --kargs=${kargs}
-  - name: Execute wwsh provision set "{{ compute_regex }}" --kargs="{{ kargs }}" on master 
-    command: "wwsh provision set {{ compute_regex }} --kargs={{ kargs }}"
-    register: result
-    failed_when: result.rc not in [0]
-
+- name: Execute wwsh provision set "{{ compute_regex }}" --kargs="{{ kargs }}" on master
+  ansible.builtin.command: "wwsh provision set {{ compute_regex }} --kargs={{ kargs }}"
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-    - enable_kargs == true
+    - enable_warewulf
+    - enable_kargs
 
 # fi
 
 # Restart ganglia services to pick up hostfile changes
 # if [[ ${enable_ganglia} -eq 1 ]];then
-- block:
-#   systemctl restart gmond
-  - name: Start gmond on master
-    service: name=gmond state=restarted
-
-#   systemctl restart gmetad
-  - name: Start gmetad on master
-    service: name=gmetad state=restarted
-
+- name: Start gmond
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_ganglia == true
+    - enable_ganglia
+  block:
+  #   systemctl restart gmond
+    - name: Start gmond on master
+      ansible.builtin.service:
+        name: gmond
+        state: restarted
+
+  #   systemctl restart gmetad
+    - name: Start gmetad on master
+      ansible.builtin.service:
+        name: gmetad
+        state: restarted
     # fi
 
 - name: Mount the nfs on the compute nodes
-  shell: mount -a
+  ansible.builtin.command: mount -a
   when:
     - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - not enable_warewulf
 
-#systemctl restart dhcpd
+# systemctl restart dhcpd
 - name: Start dhcpd on master
-  service: name=dhcpd state=restarted
+  ansible.builtin.service:
+    name: dhcpd
+    state: restarted
   when:
     ( inventory_hostname in groups[nt_sms] ) and
-    ( ( enable_warewulf == true ) or ( enable_dhcpd_server == true ) )
+    ( ( enable_warewulf ) or ( enable_dhcpd_server ) )
 
-#wwsh pxe update
+# wwsh pxe update
 - name: Execute wwsh pxe update on master
-  shell: wwsh pxe update
+  ansible.command.shell: wwsh pxe update
   register: result
   failed_when: result.rc not in [0, 1]
   when:
     - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+    - enable_warewulf
 
-# Optionally, enable console redirection 
-#if [[ ${enable_ipmisol} -eq 1 ]];then
-- block:
+# Optionally, enable console redirection
+# if [[ ${enable_ipmisol}s -eq 1 ]];then
 #     wwsh -y provision set "${compute_regex}" --kargs "${kargs} console=ttyS1,115200"
-  - name: Execute wwsh -y provision set {{ compute_regex }} --kargs {{ kargs }} console=ttyS1,115200 on master
-    shell: "wwsh -y provision set {{ compute_regex }} --kargs {{ kargs }} console=ttyS1,115200"
-    register: result
-    failed_when: result.rc not in [0]
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_ipmisol == true
-      - enable_warewulf == true
+- name: Execute wwsh -y provision set {{ compute_regex }} --kargs {{ kargs }} console=ttyS1,115200 on master
+  ansible.builtin.command: "wwsh -y provision set {{ compute_regex }} --kargs {{ kargs }} console=ttyS1,115200"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_ipmisol
+    - enable_warewulf
